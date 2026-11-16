@@ -2,12 +2,9 @@
 
 // Both feeds belong to this apartment; dates booked on either feed are unavailable.
 const property = {
-  name: "Apartment Smolensko",
-  calendarUrls: [
-    "https://ical.booking.com/v1/export?t=d1aa823a-3a3a-4946-8e5d-ad7c01df3042",
-    "https://www.airbnb.com/calendar/ical/1805287822772784418.ics?t=381ddf48b7364792a8d43977690fc9af"
-  ]
+  name: "Apartment Smolensko"
 };
+const calendarApiUrl = "https://smolensko-calendar-api.antanas-sukevicius.workers.dev/api/calendar";
 
 // Replace these contact placeholders before publishing the site.
 const contact = {
@@ -55,71 +52,22 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(parseDateKey(value));
 }
 
-// Parse unfolded iCalendar VEVENT blocks into occupied local dates (DTEND is exclusive).
-function parseIcs(icsText) {
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    throw new Error("Calendar response is not a valid iCalendar feed");
-  }
-  const unfolded = icsText.replace(/\r?\n[ \t]/g, "");
-  const events = unfolded.split(/BEGIN:VEVENT/i).slice(1);
-  const unavailable = new Set();
-
-  function getDate(propertyLine) {
-    if (!propertyLine) return null;
-    const [property, rawValue] = propertyLine.split(/:(.*)/s).filter((part) => part !== undefined);
-    if (!property || rawValue === undefined) return null;
-    const isDateOnly = /(?:^|;)VALUE=DATE(?:;|$)/i.test(property) || /^\d{8}$/.test(rawValue.trim());
-    const value = rawValue.trim();
-    if (isDateOnly) {
-      const match = value.match(/^(\d{4})(\d{2})(\d{2})/);
-      return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
-    }
-
-    const dateTime = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/i);
-    if (!dateTime) return null;
-    if (dateTime[7]) {
-      const instant = new Date(Date.UTC(
-        Number(dateTime[1]), Number(dateTime[2]) - 1, Number(dateTime[3]),
-        Number(dateTime[4]), Number(dateTime[5]), Number(dateTime[6] || 0)
-      ));
-      const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Vilnius", year: "numeric", month: "2-digit", day: "2-digit"
-      }).formatToParts(instant);
-      const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-      return new Date(Number(values.year), Number(values.month) - 1, Number(values.day));
-    }
-    return new Date(Number(dateTime[1]), Number(dateTime[2]) - 1, Number(dateTime[3]));
-  }
-
-  for (const event of events) {
-    const lines = event.split(/\r?\n/);
-    const startLine = lines.find((line) => /^DTSTART(?:;[^:]*)?:/i.test(line));
-    const endLine = lines.find((line) => /^DTEND(?:;[^:]*)?:/i.test(line));
-    const start = getDate(startLine);
-    const end = getDate(endLine);
-    if (!start || !end || end <= start) continue;
-
-    for (const occupied = new Date(start); occupied < end; occupied.setDate(occupied.getDate() + 1)) {
-      unavailable.add(toDateKey(occupied));
-    }
-  }
-  return unavailable;
-}
-
 async function loadCalendar() {
   state.calendarLoading = true;
   state.calendarError = "";
   renderCalendar();
   try {
-    const calendars = await Promise.all(property.calendarUrls.map(async (url) => {
-      const response = await fetch(url, { headers: { Accept: "text/calendar,text/plain,*/*" } });
-      if (!response.ok) throw new Error(`Calendar server returned HTTP ${response.status}`);
-      return parseIcs(await response.text());
-    }));
-    state.unavailableDates = new Set(calendars.flatMap((calendar) => [...calendar]));
+    const response = await fetch(calendarApiUrl, { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`Calendar service returned HTTP ${response.status}`);
+    const calendar = await response.json();
+    if (!Array.isArray(calendar.unavailableDates) ||
+        !calendar.unavailableDates.every((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))) {
+      throw new Error("Calendar service returned invalid availability data");
+    }
+    state.unavailableDates = new Set(calendar.unavailableDates);
   } catch (error) {
     console.error(`Unable to load all availability calendars for ${property.name}:`, error);
-    state.calendarError = "Availability could not be loaded from both calendars. A calendar host may block browser requests (CORS); please contact us to confirm your dates.";
+    state.calendarError = "Availability could not be loaded. The calendar service may not be deployed or configured yet. Please contact us to confirm your dates.";
   } finally {
     state.calendarLoading = false;
     renderCalendar();
