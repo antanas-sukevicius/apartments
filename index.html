@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f8f6">
+  <meta name="description" content="A comfortable, thoughtfully equipped apartment in Vilnius. Check dates and send a direct booking request.">
+  <title>Apartment Smolensko | Stay in Vilnius</title>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Main navigation">
+      <a class="brand" href="#home" aria-label="Apartment Smolensko home">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>Smolensko stays</span>
+      </a>
+      <div class="nav-links">
+        <a href="#availability">The apartment</a>
+        <a href="#gallery">Gallery</a>
+        <a href="#contact">Contact</a>
+        <a class="nav-cta" href="#availability">Check dates <span aria-hidden="true">→</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap" id="home" aria-labelledby="hero-title">
+      <div class="hero-frame">
+        <div class="hero-copy">
+          <span class="eyebrow">Your Vilnius home away from home</span>
+          <h1 id="hero-title">Apartment<br>Smolensko.</h1>
+          <p>Modern apartment in Vilnius with self check-in, parking, WiFi and a fully equipped kitchen. Come back to a place you know and book directly with us.</p>
+          <a class="button button-light" href="#availability">Check availability <span aria-hidden="true">→</span></a>
+          <span class="hero-note">Returning guest? Welcome back.</span>
+        </div>
+      </div>
+      <div class="trust-row" aria-label="Apartment features">
+        <span><b aria-hidden="true">✓</b> Self check-in</span>
+        <span><b aria-hidden="true">✓</b> Free parking</span>
+        <span><b aria-hidden="true">✓</b> Fast WiFi</span>
+        <span><b aria-hidden="true">✓</b> Fully equipped kitchen</span>
+      </div>
+    </section>
+
+    <section class="section wrap" id="gallery" aria-labelledby="gallery-title">
+      <span class="eyebrow">A look around</span>
+      <h2 class="section-heading" id="gallery-title">Comfort in every detail.</h2>
+      <p class="section-intro">Relax, cook, work or explore — the essentials for a smooth stay are all here.</p>
+      <div class="gallery-grid" aria-label="Apartment photo gallery">
+        <img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1100&q=80" alt="Bright modern apartment living room" fetchpriority="high">
+        <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=700&q=75" alt="Contemporary living space" loading="lazy">
+        <img src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=700&q=75" alt="Comfortable apartment interior" loading="lazy">
+        <img src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=700&q=75" alt="Well-appointed home interior" loading="lazy">
+        <img src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=700&q=75" alt="Modern kitchen and dining area" loading="lazy">
+      </div>
+    </section>
+
+    <section class="section wrap" id="availability" aria-labelledby="availability-title">
+      <span class="eyebrow">Plan your visit</span>
+      <h2 class="section-heading" id="availability-title">Check dates & request a stay.</h2>
+      <p class="section-intro">Choose your check-in and check-out dates for Apartment Smolensko. Green dates are available; red dates are already booked.</p>
+      <div class="booking-layout">
+        <section class="panel calendar-panel" aria-labelledby="calendar-heading">
+          <div class="calendar-top">
+            <h3 id="calendar-heading">Apartment Smolensko availability</h3>
+            <div class="month-controls">
+              <button class="icon-button" id="previous-month" type="button" aria-label="Previous month">‹</button>
+              <span class="month-title" id="month-title" aria-live="polite"></span>
+              <button class="icon-button" id="next-month" type="button" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <p class="calendar-status" id="calendar-status" role="status" aria-live="polite">Loading calendar availability…</p>
+          <div class="weekdays" aria-hidden="true">
+            <span class="weekday">Mon</span><span class="weekday">Tue</span><span class="weekday">Wed</span>
+            <span class="weekday">Thu</span><span class="weekday">Fri</span><span class="weekday">Sat</span><span class="weekday">Sun</span>
+          </div>
+          <div class="calendar-days" id="calendar-days" role="group" aria-label="Select your check-in and check-out dates"></div>
+          <div class="calendar-legend" aria-label="Calendar key">
+            <span class="legend-item"><i class="legend-swatch"></i> Available</span>
+            <span class="legend-item"><i class="legend-swatch red"></i> Booked</span>
+            <span class="legend-item"><i class="legend-swatch gray"></i> Past / loading</span>
+          </div>
+          <div class="selected-dates">
+            <div class="date-summary"><small>Check-in</small><strong id="checkin-summary">Select a date</strong></div>
+            <div class="date-summary"><small>Check-out</small><strong id="checkout-summary">Select a date</strong></div>
+          </div>
+        </section>
+
+        <form class="panel form-panel" id="booking-form">
+          <h3>Send a booking request</h3>
+          <p>No payment is needed now. We’ll confirm availability with you directly.</p>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="guest-name">Name</label>
+              <input id="guest-name" name="name" autocomplete="name" placeholder="Your full name" required>
+            </div>
+            <div class="field">
+              <label for="guest-email">Email</label>
+              <input id="guest-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+            </div>
+            <div class="field">
+              <label for="guest-phone">Phone</label>
+              <input id="guest-phone" name="phone" type="tel" autocomplete="tel" placeholder="+370 ..." required>
+            </div>
+            <div class="field">
+              <label for="checkin-input">Check-in</label>
+              <input id="checkin-input" name="checkin" type="date" required>
+            </div>
+            <div class="field">
+              <label for="checkout-input">Check-out</label>
+              <input id="checkout-input" name="checkout" type="date" required>
+            </div>
+            <div class="field full">
+              <label for="guest-count">Number of guests</label>
+              <select id="guest-count" name="guests" required>
+                <option value="1">1 guest</option><option value="2" selected>2 guests</option>
+                <option value="3">3 guests</option><option value="4">4 guests</option>
+                <option value="5">5 guests</option><option value="6">6 guests</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="guest-message">Message <span style="font-weight:400;color:#7a8580">(optional)</span></label>
+              <textarea id="guest-message" name="message" placeholder="Tell us anything we should know about your stay…"></textarea>
+            </div>
+          </div>
+          <button class="button form-submit" type="submit">Request to book <span aria-hidden="true">→</span></button>
+          <p class="form-note">Your request will open in your email app so you can send it directly.</p>
+          <div class="form-feedback" id="form-feedback" role="status"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="section wrap" id="contact" aria-labelledby="contact-title">
+      <div class="contact-card">
+        <div>
+          <span class="eyebrow">We’re here to help</span>
+          <h2 id="contact-title">Let’s make your next visit easy.</h2>
+          <p>Have a question or a special request? Get in touch directly — we’d love to welcome you back.</p>
+        </div>
+        <div class="contact-methods">
+          <a class="contact-link" id="phone-link" href="tel:+370XXXXXXXX">
+            <span>Call or text</span><strong>+370XXXXXXXX</strong>
+          </a>
+          <a class="contact-link" id="email-link" href="mailto:your@email.com">
+            <span>Email</span><strong>your@email.com</strong>
+          </a>
+          <div class="social-links">
+            <a id="whatsapp-link" href="https://wa.me/370XXXXXXXX" target="_blank" rel="noopener noreferrer">WhatsApp ↗</a>
+            <a id="viber-link" href="viber://chat?number=%2B370XXXXXXXX">Viber ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-row">
+      <span>© <span id="current-year"></span> Smolensko stays</span>
+      <span>Made for good stays in Vilnius.</span>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
