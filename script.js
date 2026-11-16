@@ -262,7 +262,6 @@ for (const input of [elements.checkinInput, elements.checkoutInput]) {
   });
 }
 
-document.getElementById("current-year").textContent = new Date().getFullYear();
 setupContactLinks();
 renderCalendar();
 loadCalendar();
