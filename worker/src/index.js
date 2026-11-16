@@ -9,19 +9,27 @@ const JSON_HEADERS = {
   "Cache-Control": "public, max-age=300"
 };
 
-function jsonResponse(body, status, origin) {
-  const headers = new Headers(JSON_HEADERS);
-  if (status !== 200) headers.set("Cache-Control", "no-store");
-  headers.set("Vary", "Origin");
+function corsHeaders(origin) {
+  const headers = new Headers({ Vary: "Origin" });
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return headers;
 
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    headers.set("Access-Control-Allow-Origin", origin);
-    headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    headers.set("Access-Control-Allow-Headers", "Accept");
-    headers.set("Access-Control-Max-Age", "86400");
-  }
+  headers.set("Access-Control-Allow-Origin", origin);
+  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Accept, Content-Type");
+  headers.set("Access-Control-Max-Age", "86400");
+  return headers;
+}
+
+function jsonResponse(body, status, origin, noStore = false) {
+  const headers = new Headers(JSON_HEADERS);
+  if (noStore || status !== 200) headers.set("Cache-Control", "no-store");
+  for (const [name, value] of corsHeaders(origin)) headers.set(name, value);
 
   return new Response(JSON.stringify(body), { status, headers });
+}
+
+function bookingResponse(body, status, origin) {
+  return jsonResponse(body, status, origin, true);
 }
 
 function parseIcs(icsText) {
@@ -111,6 +119,151 @@ async function fetchCalendar(url) {
   return parseIcs(await response.text());
 }
 
+async function getUnavailableDates(env) {
+  const bookingUrl = validateCalendarUrl(env.BOOKING_ICAL_URL, "ical.booking.com");
+  const airbnbUrl = validateCalendarUrl(env.AIRBNB_ICAL_URL, "www.airbnb.com");
+  const calendars = await Promise.all([
+    fetchCalendar(bookingUrl),
+    fetchCalendar(airbnbUrl)
+  ]);
+  return [...new Set(calendars.flatMap((calendar) => [...calendar]))].sort();
+}
+
+function cleanField(value, maxLength) {
+  return value.trim().replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, maxLength);
+}
+
+function isValidDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function dateInVilnius() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Vilnius",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function hasUnavailableNight(checkin, checkout, unavailableDates) {
+  const cursor = new Date(`${checkin}T00:00:00Z`);
+  const end = new Date(`${checkout}T00:00:00Z`);
+  while (cursor < end) {
+    if (unavailableDates.has(cursor.toISOString().slice(0, 10))) return true;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return false;
+}
+
+async function submitBooking(request, env, origin) {
+  const ip = request.headers.get("CF-Connecting-IP");
+  if (!ip) return bookingResponse({ error: "Could not verify request origin" }, 400, origin);
+  if (!env.BOOKING_RATE_LIMITER) {
+    console.error("Booking rate limiter binding is missing");
+    return bookingResponse({ error: "Booking requests are temporarily unavailable" }, 503, origin);
+  }
+
+  try {
+    const { success } = await env.BOOKING_RATE_LIMITER.limit({ key: ip });
+    if (!success) return bookingResponse({ error: "Too many requests. Please try again in a minute." }, 429, origin);
+  } catch (error) {
+    console.error("Booking rate limiter failed:", error.message);
+    return bookingResponse({ error: "Booking requests are temporarily unavailable" }, 503, origin);
+  }
+
+  if (Number(request.headers.get("Content-Length")) > 8192) {
+    return bookingResponse({ error: "Booking request is too large" }, 413, origin);
+  }
+  if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("application/json")) {
+    return bookingResponse({ error: "Expected a JSON booking request" }, 415, origin);
+  }
+
+  let booking;
+  try {
+    const body = await request.text();
+    if (body.length > 8192) {
+      return bookingResponse({ error: "Booking request is too large" }, 413, origin);
+    }
+    booking = JSON.parse(body);
+  } catch {
+    return bookingResponse({ error: "Invalid booking request" }, 400, origin);
+  }
+  if (!booking || typeof booking !== "object" || Array.isArray(booking)) {
+    return bookingResponse({ error: "Invalid booking request" }, 400, origin);
+  }
+  if (typeof booking.website === "string" && booking.website.trim()) {
+    return bookingResponse({ ok: true }, 200, origin);
+  }
+
+  const name = typeof booking.name === "string" ? cleanField(booking.name, 100) : "";
+  const email = typeof booking.email === "string" ? cleanField(booking.email, 254) : "";
+  const phone = typeof booking.phone === "string" ? cleanField(booking.phone, 40) : "";
+  const checkin = typeof booking.checkin === "string" ? booking.checkin : "";
+  const checkout = typeof booking.checkout === "string" ? booking.checkout : "";
+  const guests = Number(booking.guests);
+  const message = typeof booking.message === "string" ? cleanField(booking.message, 1000) : "";
+
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.length < 5 ||
+      !Number.isInteger(guests) || guests < 1 || guests > 6 ||
+      !isValidDate(checkin) || !isValidDate(checkout) || checkout <= checkin) {
+    return bookingResponse({ error: "Please check your name, email, phone, guest count and dates." }, 400, origin);
+  }
+  if (checkin < dateInVilnius()) {
+    return bookingResponse({ error: "Check-in date must not be in the past." }, 400, origin);
+  }
+
+  let unavailableDates;
+  try {
+    unavailableDates = new Set(await getUnavailableDates(env));
+  } catch (error) {
+    console.error("Could not verify booking dates:", error.message);
+    return bookingResponse({ error: "Availability could not be verified. Please try again shortly." }, 502, origin);
+  }
+  if (hasUnavailableNight(checkin, checkout, unavailableDates)) {
+    return bookingResponse({ error: "Those dates are no longer available. Please choose another date range." }, 409, origin);
+  }
+  if (!env.TELEGRAM_BOT_TOKEN || !/^\d+:[A-Za-z0-9_-]+$/.test(env.TELEGRAM_BOT_TOKEN) ||
+      !env.TELEGRAM_CHAT_ID || !/^-?\d+$/.test(env.TELEGRAM_CHAT_ID)) {
+    console.error("Telegram bot token or chat ID secret is missing or invalid");
+    return bookingResponse({ error: "Booking notifications are not configured yet. Please contact us directly." }, 503, origin);
+  }
+
+  const telegramMessage = [
+    "New booking request — Apartment Smolensko",
+    `Name: ${name}`,
+    `Email: ${email}`,
+    `Phone: ${phone}`,
+    `Check-in: ${checkin}`,
+    `Check-out: ${checkout}`,
+    `Guests: ${guests}`,
+    `Message: ${message || "(none)"}`
+  ].join("\n");
+
+  try {
+    const telegramResponse = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: telegramMessage }),
+      signal: AbortSignal.timeout(10000)
+    });
+    const result = await telegramResponse.json();
+    if (!telegramResponse.ok || !result.ok) {
+      console.error("Telegram rejected booking notification:", telegramResponse.status);
+      return bookingResponse({ error: "We could not deliver your request. Please try again or contact us directly." }, 502, origin);
+    }
+  } catch (error) {
+    console.error("Telegram booking notification failed:", error.message);
+    return bookingResponse({ error: "We could not deliver your request. Please try again or contact us directly." }, 502, origin);
+  }
+
+  return bookingResponse({ ok: true, message: "Your request was sent. We’ll contact you soon." }, 200, origin);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
@@ -119,34 +272,24 @@ export default {
     if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return jsonResponse({ error: "Origin is not allowed" }, 403, null);
     }
-    if (url.pathname !== "/api/calendar") {
+    if (url.pathname !== "/api/calendar" && url.pathname !== "/api/booking") {
       return jsonResponse({ error: "Not found" }, 404, origin);
     }
     if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "Vary": "Origin",
-          "Access-Control-Allow-Origin": origin || "",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "Accept",
-          "Access-Control-Max-Age": "86400"
-        }
-      });
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
-    if (request.method !== "GET") {
+    if (url.pathname === "/api/booking" && request.method === "POST") {
+      if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+        return jsonResponse({ error: "Origin is not allowed" }, 403, null);
+      }
+      return submitBooking(request, env, origin);
+    }
+    if (url.pathname !== "/api/calendar" || request.method !== "GET") {
       return jsonResponse({ error: "Method not allowed" }, 405, origin);
     }
 
     try {
-      const bookingUrl = validateCalendarUrl(env.BOOKING_ICAL_URL, "ical.booking.com");
-      const airbnbUrl = validateCalendarUrl(env.AIRBNB_ICAL_URL, "www.airbnb.com");
-      const calendars = await Promise.all([
-        fetchCalendar(bookingUrl),
-        fetchCalendar(airbnbUrl)
-      ]);
-      const unavailableDates = [...new Set(calendars.flatMap((calendar) => [...calendar]))].sort();
-
+      const unavailableDates = await getUnavailableDates(env);
       return jsonResponse({
         unavailableDates,
         updatedAt: new Date().toISOString()

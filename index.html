@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f8f8f6">
   <meta name="description" content="A comfortable, thoughtfully equipped apartment in Vilnius. Check dates and send a direct booking request.">
   <title>Apartment Smolensko | Stay in Vilnius</title>
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
   <main>
@@ -45,6 +45,10 @@
           <h3>Send a booking request</h3>
           <p>No payment is needed now. We’ll confirm availability with you directly.</p>
           <div class="form-grid">
+            <div class="honeypot" aria-hidden="true">
+              <label for="website">Leave this field empty</label>
+              <input id="website" name="website" tabindex="-1" autocomplete="off">
+            </div>
             <div class="field full">
               <label for="guest-name">Name</label>
               <input id="guest-name" name="name" autocomplete="name" placeholder="Your full name" required>
@@ -79,7 +83,7 @@
             </div>
           </div>
           <button class="button form-submit" type="submit">Request to book <span aria-hidden="true">→</span></button>
-          <p class="form-note">Your request will open in your email app so you can send it directly.</p>
+          <p class="form-note">Your details will be sent securely to the host via Telegram so we can follow up about your stay.</p>
           <div class="form-feedback" id="form-feedback" role="status"></div>
         </form>
       </div>
@@ -108,6 +112,6 @@
     </section>
   </main>
 
-  <script src="script.js?v=2" defer></script>
+  <script src="script.js?v=3" defer></script>
 </body>
 </html>

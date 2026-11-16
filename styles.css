@@ -83,6 +83,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .form-note { margin: 12px 0 0 !important; color: #7a8580 !important; font-size: .77rem !important; }
 .form-feedback { display: none; margin-top: 12px; padding: 12px; border-radius: 10px; color: var(--green-dark); background: var(--green-soft); font-size: .85rem; line-height: 1.5; }
 .form-feedback.visible { display: block; }
+.honeypot { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
 /* Contact area and responsive layouts */
 .contact-card { display: grid; grid-template-columns: 1.1fr .9fr; gap: 36px; align-items: center; padding: clamp(25px, 5vw, 52px); border-radius: 28px; color: white; background: #203d32; box-shadow: var(--shadow); }

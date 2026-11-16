@@ -5,6 +5,7 @@ const property = {
   name: "Apartment Smolensko"
 };
 const calendarApiUrl = "https://smolensko-calendar-api.antanas-sukevicius.workers.dev/api/calendar";
+const bookingApiUrl = "https://smolensko-calendar-api.antanas-sukevicius.workers.dev/api/booking";
 
 // Replace these contact placeholders before publishing the site.
 const contact = {
@@ -172,8 +173,7 @@ function changeMonth(offset) {
   renderCalendar();
 }
 
-// This frontend-only submission creates a ready-to-send email; replace with an API call later.
-function submitBooking(event) {
+async function submitBooking(event) {
   event.preventDefault();
   const formData = new FormData(elements.form);
   const checkin = String(formData.get("checkin") || "");
@@ -193,19 +193,30 @@ function submitBooking(event) {
     return;
   }
 
-  const subject = `Booking request — ${property.name}`;
-  const body = [
-    `Property: ${property.name}`,
-    `Name: ${formData.get("name")}`,
-    `Email: ${formData.get("email")}`,
-    `Phone: ${formData.get("phone")}`,
-    `Check-in: ${checkin}`,
-    `Check-out: ${checkout}`,
-    `Guests: ${formData.get("guests")}`,
-    `Message: ${formData.get("message") || "(none)"}`
-  ].join("\n");
-  window.location.href = `mailto:${encodeURIComponent(contact.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  showFormMessage("Your email app should open with the booking request ready to send. Remember to press Send in your email app.");
+  const submitButton = elements.form.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  showFormMessage("Sending your request securely…");
+
+  try {
+    const response = await fetch(bookingApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(Object.fromEntries(formData.entries()))
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "We could not send your request. Please try again.");
+
+    elements.form.reset();
+    state.checkin = "";
+    state.checkout = "";
+    renderCalendar();
+    showFormMessage(result.message || "Your request was sent. We’ll contact you soon.");
+  } catch (error) {
+    console.error("Unable to submit booking request:", error);
+    showFormMessage(error.message || "We could not send your request. Please try again or contact us directly.", true);
+  } finally {
+    submitButton.disabled = false;
+  }
 }
 
 function showFormMessage(message, isError = false) {

@@ -10,8 +10,9 @@ Static apartment rental website published with GitHub Pages.
 ## Calendar proxy setup
 
 GitHub Pages cannot read the iCal feeds directly because their providers block
-browser cross-origin requests. Follow [the Worker deployment guide](worker/README.md)
-to deploy the calendar API, configure its private feed URLs, and connect the site.
+browser cross-origin requests. The Cloudflare Worker handles calendar requests
+and sends booking requests to Telegram. Follow [the Worker deployment guide](worker/README.md)
+to configure the private calendar URLs and Telegram bot secrets.
 
-The booking form currently opens a prefilled email; it does not submit bookings
-to a backend.
+The form sends a booking request notification; it does not automatically
+approve a stay or take payment.

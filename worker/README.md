@@ -1,8 +1,10 @@
-# Calendar API deployment
+# Calendar and booking API deployment
 
 The GitHub Pages site is static, so it cannot fetch the Booking.com and Airbnb
 feeds directly from a browser. This Cloudflare Worker fetches both feeds,
-combines their unavailable dates, and returns JSON to the site.
+combines their unavailable dates, and returns JSON to the site. It also checks
+booking requests against fresh feed data and sends valid requests to your
+private Telegram chat.
 
 ## Important: rotate the existing calendar links
 
@@ -33,7 +35,7 @@ links or add the replacement links to source control.
    `https://smolensko-calendar-api.antanas-sukevicius.workers.dev`.
 
 5. In Cloudflare, open **Workers & Pages**, select `smolensko-calendar-api`,
-   then **Settings → Variables and Secrets**. Add these two values as **Secrets**:
+   then **Settings → Variables and Secrets**. Add these calendar URLs as **Secrets**:
 
    - `BOOKING_ICAL_URL` — the full Booking.com iCal URL
    - `AIRBNB_ICAL_URL` — the full Airbnb iCal URL
@@ -41,18 +43,41 @@ links or add the replacement links to source control.
    Enter the feed URLs directly in Cloudflare. Do not put them in source files,
    commit them, or send them in chat.
 
-6. Push the updated `script.js` to GitHub so the Pages site uses the Worker API.
+6. Create a Telegram bot:
+
+   - Open Telegram and message `@BotFather`.
+   - Send `/newbot`, follow the prompts, and save the bot token privately.
+   - Open the new bot and press **Start** (or send `/start`) so it can message you.
+   - To find your private chat ID, open
+     `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates` in a browser,
+     replacing the placeholder with your token. Find `message.chat.id` in the
+     response. The token is part of that URL: do not share or screenshot it.
+
+7. In **Settings → Variables and Secrets** for `smolensko-calendar-api`, add
+   these as **Secrets**:
+
+   - `TELEGRAM_BOT_TOKEN` — the token from BotFather
+   - `TELEGRAM_CHAT_ID` — the numeric ID of your private chat with the bot
+
+   The bot API is free for these notifications. Telegram notifications require
+   internet access; they are not SMS and are not a booking confirmation.
+
+8. Push the updated `script.js` and `index.html` to GitHub so the Pages site
+   sends requests to the Worker.
    The Worker already permits requests from the GitHub Pages origin for this
    repository. If you later add a custom website domain, add its origin to
    `ALLOWED_ORIGINS` in `worker/src/index.js` and redeploy.
 
-7. Confirm the API responds by opening
+9. Confirm availability by opening
    `https://smolensko-calendar-api.antanas-sukevicius.workers.dev/api/calendar`.
    A successful response contains `unavailableDates` and `updatedAt`.
+   Then submit one test request on the website using a valid available date
+   range and confirm it arrives in Telegram.
 
-The API caches responses in browsers for five minutes. If either calendar
-provider is temporarily unavailable, it returns an error rather than showing
-dates as available.
+Booking requests are limited to three per IP per minute and include a hidden
+honeypot field. Availability responses are cached for five minutes. If either
+calendar provider is unavailable, the Worker rejects the request rather than
+assuming the dates are free.
 
 ## Updating the service
 
